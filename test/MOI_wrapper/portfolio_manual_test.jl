@@ -12,8 +12,7 @@ println("\nPortfolio MOI Wrapper Example")
 # Generate the same kind of portfolio data
 # --------------------------------------------------
 
-seed = rand(UInt64)
-@show seed
+seed = 128
 
 rng = StableRNG(seed)
 

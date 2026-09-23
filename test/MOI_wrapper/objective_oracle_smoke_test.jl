@@ -1,23 +1,22 @@
+using Test
 using Boscia
 using SCIP
 import MathOptInterface as MOI
 
 println("=== Boscia objective oracle smoke test ===")
 
-
-
 # ------------------------------------------------------------
 # Quadratic objective:
-# min (x - 2)^2
+# f(x) = (x - 2)^2
+#      = x^2 - 4x + 4
+#
+# gradient:
+# f'(x) = 2x - 4
 # ------------------------------------------------------------
 
 opt = Boscia.Optimizer(SCIP.Optimizer)
 
 x = MOI.add_variable(opt)
-
-MOI.add_constraint(opt, x, MOI.GreaterThan(1.0))
-MOI.add_constraint(opt, x, MOI.LessThan(5.0))
-MOI.add_constraint(opt, x, MOI.Integer())
 
 quadratic_obj = MOI.ScalarQuadraticFunction(
     [
@@ -31,21 +30,41 @@ quadratic_obj = MOI.ScalarQuadraticFunction(
 
 MOI.set(
     opt,
-    MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}(),
+    MOI.ObjectiveFunction{
+        MOI.ScalarQuadraticFunction{Float64}
+    }(),
     quadratic_obj,
 )
 
-MOI.set(opt, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+MOI.set(
+    opt,
+    MOI.ObjectiveSense(),
+    MOI.MIN_SENSE,
+)
 
-MOI.optimize!(opt)
+# ------------------------------------------------------------
+# Build Boscia objective oracles
+# ------------------------------------------------------------
 
-println("objective function = ", MOI.get(opt, MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}()))
-println("termination = ", MOI.get(opt, MOI.TerminationStatus()))
-println("raw status  = ", MOI.get(opt, MOI.RawStatusString()))
-println("primal      = ", MOI.get(opt, MOI.PrimalStatus()))
-println("objective   = ", MOI.get(opt, MOI.ObjectiveValue()))
-println("x           = ", MOI.get(opt, MOI.VariablePrimal(), x))
+f, grad! = Boscia.build_objective_oracles(opt)
 
+# ------------------------------------------------------------
+# Test at x = 3
+#
+# f(3) = (3 - 2)^2 = 1
+# f'(3) = 2*3 - 4 = 2
+# ------------------------------------------------------------
+
+point = [3.0]
+
+@test f(point) ≈ 1.0
+
+storage = zeros(1)
+grad!(storage, point)
+
+@test storage[1] ≈ 2.0
+
+println("f(3)     = ", f(point))
+println("grad f(3) = ", storage[1])
 
 println("\n=== All objective oracle tests passed ===")
-
