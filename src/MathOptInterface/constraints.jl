@@ -8,14 +8,14 @@ function MOI.add_constraint(
 end
 
 function MOI.get(
-    optimizer::Optimizer, 
-    ::MOI.NumberOfConstraints{MOI.VariableIndex, MOI.GreaterThan{Float64}},
+    optimizer::Optimizer,
+    ::MOI.NumberOfConstraints{MOI.VariableIndex,MOI.GreaterThan{Float64}},
 )::Int
     return MOI.get(
-        optimizer.model, 
-        MOI.NumberOfConstraints{MOI.VariableIndex, MOI.GreaterThan{Float64}}(),
+        optimizer.model,
+        MOI.NumberOfConstraints{MOI.VariableIndex,MOI.GreaterThan{Float64}}(),
     )
-end 
+end
 
 
 # LessThan
@@ -28,14 +28,14 @@ function MOI.add_constraint(
 end
 
 function MOI.get(
-    optimizer::Optimizer, 
-    ::MOI.NumberOfConstraints{MOI.VariableIndex, MOI.LessThan{Float64}},
+    optimizer::Optimizer,
+    ::MOI.NumberOfConstraints{MOI.VariableIndex,MOI.LessThan{Float64}},
 )::Int
     return MOI.get(
-        optimizer.model, 
-        MOI.NumberOfConstraints{MOI.VariableIndex, MOI.LessThan{Float64}}(),
+        optimizer.model,
+        MOI.NumberOfConstraints{MOI.VariableIndex,MOI.LessThan{Float64}}(),
     )
-end 
+end
 
 # interval
 function MOI.add_constraint(
@@ -47,14 +47,14 @@ function MOI.add_constraint(
 end
 
 function MOI.get(
-    optimizer::Optimizer, 
-    ::MOI.NumberOfConstraints{MOI.VariableIndex, MOI.Interval{Float64}},
+    optimizer::Optimizer,
+    ::MOI.NumberOfConstraints{MOI.VariableIndex,MOI.Interval{Float64}},
 )::Int
     return MOI.get(
-        optimizer.model, 
-        MOI.NumberOfConstraints{MOI.VariableIndex, MOI.Interval{Float64}}(),
+        optimizer.model,
+        MOI.NumberOfConstraints{MOI.VariableIndex,MOI.Interval{Float64}}(),
     )
-end 
+end
 
 # EqualTo
 function MOI.add_constraint(
@@ -66,76 +66,58 @@ function MOI.add_constraint(
 end
 
 function MOI.get(
-    optimizer::Optimizer, 
-    ::MOI.NumberOfConstraints{MOI.VariableIndex, MOI.EqualTo{Float64}},
+    optimizer::Optimizer,
+    ::MOI.NumberOfConstraints{MOI.VariableIndex,MOI.EqualTo{Float64}},
 )::Int
     return MOI.get(
-        optimizer.model, 
-        MOI.NumberOfConstraints{MOI.VariableIndex, MOI.EqualTo{Float64}}(),
+        optimizer.model,
+        MOI.NumberOfConstraints{MOI.VariableIndex,MOI.EqualTo{Float64}}(),
     )
-end 
+end
 
 # Integer 
-function MOI.add_constraint(
-    optimizer::Optimizer,
-    variable::MOI.VariableIndex,
-    set::MOI.Integer,
-)
+function MOI.add_constraint(optimizer::Optimizer, variable::MOI.VariableIndex, set::MOI.Integer)
     return MOI.add_constraint(optimizer.model, variable, set)
 end
 
 function MOI.get(
-    optimizer::Optimizer, 
-    ::MOI.NumberOfConstraints{MOI.VariableIndex, MOI.Integer },
+    optimizer::Optimizer,
+    ::MOI.NumberOfConstraints{MOI.VariableIndex,MOI.Integer},
 )::Int
-    return MOI.get(
-        optimizer.model, 
-        MOI.NumberOfConstraints{MOI.VariableIndex, MOI.Integer}(),
-    )
-end 
+    return MOI.get(optimizer.model, MOI.NumberOfConstraints{MOI.VariableIndex,MOI.Integer}())
+end
 
 # ZeroOne
-function MOI.add_constraint(
-    optimizer::Optimizer,
-    variable::MOI.VariableIndex,
-    set::MOI.ZeroOne,
-)
+function MOI.add_constraint(optimizer::Optimizer, variable::MOI.VariableIndex, set::MOI.ZeroOne)
     return MOI.add_constraint(optimizer.model, variable, set)
 end
 
 function MOI.get(
-    optimizer::Optimizer, 
-    ::MOI.NumberOfConstraints{MOI.VariableIndex, MOI.ZeroOne },
+    optimizer::Optimizer,
+    ::MOI.NumberOfConstraints{MOI.VariableIndex,MOI.ZeroOne},
 )::Int
-    return MOI.get(
-        optimizer.model, 
-        MOI.NumberOfConstraints{MOI.VariableIndex, MOI.ZeroOne}(),
-    )
-end 
+    return MOI.get(optimizer.model, MOI.NumberOfConstraints{MOI.VariableIndex,MOI.ZeroOne}())
+end
 
 # supports_constraint
 function MOI.supports_constraint(
     optimizer::Optimizer,
     ::Type{MOI.VariableIndex},
-    ::Type{S}
-) where{
+    ::Type{S},
+) where {
     S<:Union{
-            MOI.GreaterThan{Float64},
-            MOI.LessThan{Float64},
-            MOI.EqualTo{Float64},
-            MOI.Interval{Float64},
-            MOI.Integer,
-            MOI.ZeroOne
+        MOI.GreaterThan{Float64},
+        MOI.LessThan{Float64},
+        MOI.EqualTo{Float64},
+        MOI.Interval{Float64},
+        MOI.Integer,
+        MOI.ZeroOne,
     },
 }
-        
 
-    return supports_constraint(
-        optimizer.backend,
-        MOI.VariableIndex,
-        S,
-    )
-    
+
+    return supports_constraint(optimizer.backend, MOI.VariableIndex, S)
+
 end
 
 
@@ -151,17 +133,11 @@ end
 
 function MOI.get(
     optimizer::Optimizer,
-    ::MOI.NumberOfConstraints{
-        MOI.ScalarAffineFunction{Float64},
-        MOI.GreaterThan{Float64}
-    },
+    ::MOI.NumberOfConstraints{MOI.ScalarAffineFunction{Float64},MOI.GreaterThan{Float64}},
 )::Int
     return MOI.get(
         optimizer.model,
-        MOI.NumberOfConstraints{
-            MOI.ScalarAffineFunction{Float64},
-            MOI.GreaterThan{Float64}
-        }(),
+        MOI.NumberOfConstraints{MOI.ScalarAffineFunction{Float64},MOI.GreaterThan{Float64}}(),
     )
 end
 
@@ -176,17 +152,11 @@ end
 
 function MOI.get(
     optimizer::Optimizer,
-    ::MOI.NumberOfConstraints{
-        MOI.ScalarAffineFunction{Float64},
-        MOI.LessThan{Float64}
-    },
+    ::MOI.NumberOfConstraints{MOI.ScalarAffineFunction{Float64},MOI.LessThan{Float64}},
 )::Int
     return MOI.get(
         optimizer.model,
-        MOI.NumberOfConstraints{
-            MOI.ScalarAffineFunction{Float64},
-            MOI.LessThan{Float64}
-        }(),
+        MOI.NumberOfConstraints{MOI.ScalarAffineFunction{Float64},MOI.LessThan{Float64}}(),
     )
 end
 
@@ -202,17 +172,11 @@ end
 
 function MOI.get(
     optimizer::Optimizer,
-    ::MOI.NumberOfConstraints{
-        MOI.ScalarAffineFunction{Float64},
-        MOI.EqualTo{Float64}
-    },
+    ::MOI.NumberOfConstraints{MOI.ScalarAffineFunction{Float64},MOI.EqualTo{Float64}},
 )::Int
     return MOI.get(
         optimizer.model,
-        MOI.NumberOfConstraints{
-            MOI.ScalarAffineFunction{Float64},
-            MOI.EqualTo{Float64}
-        }(),
+        MOI.NumberOfConstraints{MOI.ScalarAffineFunction{Float64},MOI.EqualTo{Float64}}(),
     )
 end
 
@@ -220,30 +184,17 @@ end
 function MOI.supports_constraint(
     optimizer::Optimizer,
     ::Type{MOI.ScalarAffineFunction{Float64}},
-    ::Type{S}
-) where{
-    S<:Union{
-            MOI.GreaterThan{Float64},
-            MOI.LessThan{Float64},
-            MOI.EqualTo{Float64},
-    },
-}
-        
-    return supports_constraint(
-        optimizer.backend,
-        MOI.ScalarAffineFunction{Float64},
-        S,
-    )
+    ::Type{S},
+) where {S<:Union{MOI.GreaterThan{Float64},MOI.LessThan{Float64},MOI.EqualTo{Float64}}}
+
+    return supports_constraint(optimizer.backend, MOI.ScalarAffineFunction{Float64}, S)
 end
 
 
 # Constraint routing
 function build_feasible_region(src::Optimizer)
     filtered_src = MOI.Utilities.ModelFilter(src.model) do item
-        return !(
-            item isa MOI.ObjectiveSense ||
-            item isa MOI.ObjectiveFunction
-        )
+        return !(item isa MOI.ObjectiveSense || item isa MOI.ObjectiveFunction)
     end
     return filtered_src
 end

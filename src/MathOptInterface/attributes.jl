@@ -43,7 +43,7 @@ function MOI.get(model::Optimizer, ::MOI.TimeLimitSec)
     return
 end
 
-function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, value::Union{Nothing, Float64})
+function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, value::Union{Nothing,Float64})
     model.timeout = value
     return
 end

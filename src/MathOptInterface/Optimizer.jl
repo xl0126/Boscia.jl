@@ -1,15 +1,15 @@
 import MathOptInterface as MOI
 
-mutable struct Optimizer{B <: AbstractLMOBackend} <: MOI.AbstractOptimizer
+mutable struct Optimizer{B<:AbstractLMOBackend} <: MOI.AbstractOptimizer
     model::MOI.Utilities.Model{Float64}
     backend::B
     silent::Bool
-    timeout::Union{Nothing, Float64}
+    timeout::Union{Nothing,Float64}
 
     termination_status::MOI.TerminationStatusCode
     raw_status_string::String
     primal_status::MOI.ResultStatusCode
-    objective_value::Union{Nothing, Float64}
+    objective_value::Union{Nothing,Float64}
     variable_primal::Vector{Float64}
 end
 
@@ -28,9 +28,7 @@ function Optimizer(backend::MathOptLMOBackend)
 end
 
 function Optimizer(optimizer_factory)
-    return Optimizer(
-        MathOptLMOBackend(optimizer_factory)
-    )
+    return Optimizer(MathOptLMOBackend(optimizer_factory))
 end
 
 function MOI.empty!(optimizer::Optimizer)
@@ -44,9 +42,6 @@ end
 
 MOI.supports_incremental_interface(::Optimizer) = true
 
-function MOI.copy_to(
-    dest::Optimizer,
-    src::MOI.ModelLike,
-)
+function MOI.copy_to(dest::Optimizer, src::MOI.ModelLike)
     return MOI.Utilities.default_copy_to(dest, src)
 end

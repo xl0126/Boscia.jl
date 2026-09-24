@@ -4,8 +4,8 @@ function build_objective_oracles(optimizer::Optimizer)
     obj = MOI.get(optimizer, MOI.ObjectiveFunction{typ}())
     n = MOI.get(optimizer, MOI.NumberOfVariables())
     sense = MOI.get(optimizer, MOI.ObjectiveSense())
-    
-    if sense == MOI.MIN_SENSE 
+
+    if sense == MOI.MIN_SENSE
         sign = 1.0
     elseif sense == MOI.MAX_SENSE
         sign = -1.0
@@ -18,9 +18,9 @@ function build_objective_oracles(optimizer::Optimizer)
 
         for term in obj.terms
             q[term.variable.value] += term.coefficient
-        end 
+        end
 
-        c = obj.constant 
+        c = obj.constant
 
         f = x -> sign * (dot(q, x) + c)
 
@@ -29,9 +29,9 @@ function build_objective_oracles(optimizer::Optimizer)
             storage .*= sign
             return storage
         end
-        
+
         return f, grad!
-    
+
     elseif typ == MOI.ScalarQuadraticFunction{Float64}
         Q = zeros(Float64, n, n)
         q = zeros(Float64, n)
@@ -63,19 +63,12 @@ function build_objective_oracles(optimizer::Optimizer)
             mul!(storage, Q, x)
             storage .+= q
             storage .*= sign
-            return storage 
+            return storage
         end
-        
+
         return f, grad!
 
     else
         error("Unsupported objective type: $typ")
     end
 end
-            
-
-
-
-
-
-

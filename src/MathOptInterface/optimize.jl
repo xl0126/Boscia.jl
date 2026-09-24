@@ -3,25 +3,20 @@ function validate_model(optimizer::Optimizer)
     # sense
     sense = MOI.get(optimizer, MOI.ObjectiveSense())
 
-    if sense != MOI.MAX_SENSE && sense != MOI.MIN_SENSE 
+    if sense != MOI.MAX_SENSE && sense != MOI.MIN_SENSE
         error("Unsupported objective sense: $sense")
     end
 
     # objective_type
-    objective_type = MOI.get(
-        optimizer,
-        MOI.ObjectiveFunctionType(),
-    )
+    objective_type = MOI.get(optimizer, MOI.ObjectiveFunctionType())
 
-    if objective_type != MOI.ScalarAffineFunction{Float64} && objective_type != MOI.ScalarQuadraticFunction{Float64}
+    if objective_type != MOI.ScalarAffineFunction{Float64} &&
+       objective_type != MOI.ScalarQuadraticFunction{Float64}
         error("Unsupported objective type: $objective_type")
     end
 
     #constraints
-    constraint_types = MOI.get(
-        optimizer.model,
-        MOI.ListOfConstraintTypesPresent(),
-    )
+    constraint_types = MOI.get(optimizer.model, MOI.ListOfConstraintTypesPresent())
 
     for (F, S) in constraint_types
         if !MOI.supports_constraint(optimizer, F, S)
@@ -30,11 +25,11 @@ function validate_model(optimizer::Optimizer)
     end
 
 
-    return 
+    return
 end
 
 
-function MOI.optimize!(optimizer:: Optimizer)
+function MOI.optimize!(optimizer::Optimizer)
     # Validation
     validate_model(optimizer)
 
@@ -43,27 +38,19 @@ function MOI.optimize!(optimizer:: Optimizer)
 
     settings.branch_and_bound[:verbose] = !optimizer.silent
 
-    if optimizer.timeout !==nothing
+    if optimizer.timeout !== nothing
         settings.branch_and_bound[:time_limit] = optimizer.timeout
     end
 
     # objective -> f, gard!
     f, grad! = build_objective_oracles(optimizer)
-    
+
     # lmo
     feasible_region_data = build_feasible_region(optimizer)
-    lmo = build_lmo(
-        optimizer.backend,
-        feasible_region_data,
-    )
+    lmo = build_lmo(optimizer.backend, feasible_region_data)
 
     # solve
-    x, _, result = Boscia.solve(
-        f, 
-        grad!,
-        lmo;
-        settings = settings,
-    )
+    x, _, result = Boscia.solve(f, grad!, lmo; settings=settings)
 
     # map result
     optimizer.variable_primal = copy(x)
