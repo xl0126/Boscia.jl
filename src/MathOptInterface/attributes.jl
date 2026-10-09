@@ -21,11 +21,11 @@ end
 
 # Name 
 function MOI.get(model::Optimizer, ::MOI.Name)
-    return
+    return MOI.get(model.model, attr)
 end
 
-function MOI.set(model::Optimizer, ::MOI.Name, v::Bool)
-    return
+function MOI.set(model::Optimizer, ::MOI.Name, v::String)
+    return MOI.set(model.model, attr, v)
 end
 
 MOI.supports(::Optimizer, ::MOI.Name) = true
