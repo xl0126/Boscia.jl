@@ -20,11 +20,11 @@ function MOI.get(model::Optimizer, ::MOI.SolverVersion)
 end
 
 # Name 
-function MOI.get(model::Optimizer, ::MOI.Name)
+function MOI.get(model::Optimizer, attr::MOI.Name)
     return MOI.get(model.model, attr)
 end
 
-function MOI.set(model::Optimizer, ::MOI.Name, v::String)
+function MOI.set(model::Optimizer, attr::MOI.Name, v::String)
     return MOI.set(model.model, attr, v)
 end
 
