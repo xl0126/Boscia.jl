@@ -1,4 +1,16 @@
+"""
+    build_objective_oracles(optimizer::Optimizer)
 
+Build the Frank-Wolfe oracles `f(x)` and `grad!(storage, x)` from the
+objective stored in `optimizer`.
+
+- `ScalarQuadraticFunction`: written as `0.5 * x' * Q * x + q' * x + c`,
+  with `f` and `grad!` computed directly from `Q`, `q` and `c`.
+- `ScalarNonlinearFunction`: `f` and `grad!` are computed by MOI's automatic
+  differentiation (`MOI.Nonlinear.Evaluator` with `SparseReverseMode`).
+
+For `MOI.MAX_SENSE`, both oracles are negated, so that Boscia always minimizes.
+"""
 function build_objective_oracles(optimizer::Optimizer)
     typ = MOI.get(optimizer, MOI.ObjectiveFunctionType())
     obj = MOI.get(optimizer, MOI.ObjectiveFunction{typ}())
@@ -13,30 +25,11 @@ function build_objective_oracles(optimizer::Optimizer)
         error("Unsupported objective sense: $sense")
     end
 
-    if typ == MOI.ScalarAffineFunction{Float64}
-        q = zeros(Float64, n)
-
-        for term in obj.terms
-            q[term.variable.value] += term.coefficient
-        end
-
-        c = obj.constant
-
-        f = x -> sign * (dot(q, x) + c)
-
-        grad! = (storage, x) -> begin
-            storage .= q
-            storage .*= sign
-            return storage
-        end
-
-        return f, grad!
-
-    elseif typ == MOI.ScalarQuadraticFunction{Float64}
+    if typ == MOI.ScalarQuadraticFunction{Float64}
         Q = zeros(Float64, n, n)
         q = zeros(Float64, n)
 
-        # Linear Part
+        # Linear part
         for term in obj.affine_terms
             q[term.variable.value] += term.coefficient
         end
@@ -59,6 +52,7 @@ function build_objective_oracles(optimizer::Optimizer)
 
         f = x -> sign * (0.5 * dot(x, Q, x) + dot(q, x) + c)
 
+        # Gradient of 0.5 * x' * Q * x + q' * x + c is Q * x + q 
         grad! = (storage, x) -> begin
             mul!(storage, Q, x)
             storage .+= q
@@ -67,6 +61,23 @@ function build_objective_oracles(optimizer::Optimizer)
         end
 
         return f, grad!
+
+    elseif typ == MOI.ScalarNonlinearFunction
+        nlp = MOI.Nonlinear.Model()
+        MOI.Nonlinear.set_objective(nlp, obj)
+        vars = MOI.get(optimizer, MOI.ListOfVariableIndices())
+        evaluator = MOI.Nonlinear.Evaluator(nlp, MOI.Nonlinear.SparseReverseMode(), vars)
+        MOI.initialize(evaluator, [:Grad])
+        f = x -> sign * MOI.eval_objective(evaluator, x)
+
+        grad! = (storage, x) -> begin
+            MOI.eval_objective_gradient(evaluator, storage, x)
+            storage .*= sign
+            return storage
+        end
+
+        return f, grad!
+
 
     else
         error("Unsupported objective type: $typ")
