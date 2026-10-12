@@ -1,4 +1,28 @@
-# GreaterThan
+# Constraints of Boscia.Optimizer.
+#
+# Constraints are not handled by Boscia itself. They describe the feasible
+# region, which is passed to the LMO (an inner MIP solver) at `MOI.optimize!`.
+# This file therefore only:
+#
+#   1. stores constraints in the cached model `optimizer.model`
+#      (`MOI.add_constraint`, `MOI.NumberOfConstraints`), and
+#   2. reports which constraint types are supported, by asking the LMO
+#      backend (`MOI.supports_constraint`).
+#
+# Supported constraints:
+#
+#   VariableIndex        in GreaterThan, LessThan, EqualTo, Interval,
+#                           Integer, ZeroOne
+#   ScalarAffineFunction in GreaterThan, LessThan, EqualTo
+#
+# All `add_constraint` and `NumberOfConstraints` methods below forward to
+# `optimizer.model` and differ only in the (function, set) types.
+
+# ---------------------------------------------------------------------------
+# VariableIndex constraints: variable bounds and integrality
+# ---------------------------------------------------------------------------
+
+# x >= lower
 function MOI.add_constraint(
     optimizer::Optimizer,
     variable::MOI.VariableIndex,
@@ -18,7 +42,7 @@ function MOI.get(
 end
 
 
-# LessThan
+# x <= upper
 function MOI.add_constraint(
     optimizer::Optimizer,
     variable::MOI.VariableIndex,
@@ -37,7 +61,7 @@ function MOI.get(
     )
 end
 
-# interval
+# lower <= x <= upper
 function MOI.add_constraint(
     optimizer::Optimizer,
     variable::MOI.VariableIndex,
@@ -56,7 +80,7 @@ function MOI.get(
     )
 end
 
-# EqualTo
+# x == value (fixed variable)
 function MOI.add_constraint(
     optimizer::Optimizer,
     variable::MOI.VariableIndex,
@@ -75,7 +99,7 @@ function MOI.get(
     )
 end
 
-# Integer 
+# x integer
 function MOI.add_constraint(optimizer::Optimizer, variable::MOI.VariableIndex, set::MOI.Integer)
     return MOI.add_constraint(optimizer.model, variable, set)
 end
@@ -87,7 +111,7 @@ function MOI.get(
     return MOI.get(optimizer.model, MOI.NumberOfConstraints{MOI.VariableIndex,MOI.Integer}())
 end
 
-# ZeroOne
+# x binary (x in {0, 1})
 function MOI.add_constraint(optimizer::Optimizer, variable::MOI.VariableIndex, set::MOI.ZeroOne)
     return MOI.add_constraint(optimizer.model, variable, set)
 end
@@ -99,7 +123,21 @@ function MOI.get(
     return MOI.get(optimizer.model, MOI.NumberOfConstraints{MOI.VariableIndex,MOI.ZeroOne}())
 end
 
-# supports_constraint
+"""
+    MOI.supports_constraint(
+        optimizer::Optimizer,
+        ::Type{MOI.VariableIndex},
+        ::Type{S},
+    ) where {S}
+
+Return whether a `VariableIndex`-in-`S` constraint is supported.
+
+Boscia passes these constraints to the LMO, so the answer is delegated to the
+LMO backend: the constraint is supported if the inner MIP solver supports it.
+
+Only the sets listed in the method signature are considered; any other set
+falls back to MOI's default and is reported as unsupported.
+"""
 function MOI.supports_constraint(
     optimizer::Optimizer,
     ::Type{MOI.VariableIndex},
@@ -121,8 +159,11 @@ function MOI.supports_constraint(
 end
 
 
-# ScalarAffineFunction
-# GreaterThan
+# ---------------------------------------------------------------------------
+# ScalarAffineFunction constraints: linear constraints a'x + b in S
+# ---------------------------------------------------------------------------
+
+# a'x + b >= lower
 function MOI.add_constraint(
     optimizer::Optimizer,
     func::MOI.ScalarAffineFunction{Float64},
@@ -141,7 +182,7 @@ function MOI.get(
     )
 end
 
-# LessThan
+# a'x + b <= upper
 function MOI.add_constraint(
     optimizer::Optimizer,
     func::MOI.ScalarAffineFunction{Float64},
@@ -160,7 +201,7 @@ function MOI.get(
     )
 end
 
-# EqualTo
+# a'x + b == value
 function MOI.add_constraint(
     optimizer::Optimizer,
     func::MOI.ScalarAffineFunction{Float64},
@@ -180,7 +221,20 @@ function MOI.get(
     )
 end
 
-# supports_constraint
+"""
+    MOI.supports_constraint(
+        optimizer::Optimizer,
+        ::Type{MOI.ScalarAffineFunction{Float64}},
+        ::Type{S},
+    ) where {S}
+
+Return whether a `ScalarAffineFunction`-in-`S` constraint is supported.
+
+As for variable constraints, the answer is delegated to the LMO backend.
+Only `GreaterThan`, `LessThan` and `EqualTo` are considered; other sets (for
+example `Interval`) are reported as unsupported and can be handled by MOI
+bridges.
+"""
 function MOI.supports_constraint(
     optimizer::Optimizer,
     ::Type{MOI.ScalarAffineFunction{Float64}},
@@ -191,7 +245,21 @@ function MOI.supports_constraint(
 end
 
 
-# Constraint routing
+# ---------------------------------------------------------------------------
+# Feasible region
+# ---------------------------------------------------------------------------
+
+"""
+    build_feasible_region(src::Optimizer)
+
+Return a view of the cached model `src.model` that contains everything except
+the objective: variables, variable bounds, integrality and linear constraints.
+
+This view is copied into the inner MIP solver by [`build_lmo`](@ref). The
+objective is filtered out because Boscia never passes the user's (quadratic
+or nonlinear) objective to the LMO; the LMO only minimizes linear functions
+chosen by Frank-Wolfe.
+"""
 function build_feasible_region(src::Optimizer)
     filtered_src = MOI.Utilities.ModelFilter(src.model) do item
         return !(item isa MOI.ObjectiveSense || item isa MOI.ObjectiveFunction)
