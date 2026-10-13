@@ -10,6 +10,11 @@ objective stored in `optimizer`.
   differentiation (`MOI.Nonlinear.Evaluator` with `SparseReverseMode`).
 
 For `MOI.MAX_SENSE`, both oracles are negated, so that Boscia always minimizes.
+
+Boscia requires a convex objective (concave for `MOI.MAX_SENSE`). For
+quadratic objectives this is checked: an error is thrown if `sign * Q` has a
+negative eigenvalue. For nonlinear objectives convexity cannot be checked in
+general.
 """
 function build_objective_oracles(optimizer::Optimizer)
     typ = MOI.get(optimizer, MOI.ObjectiveFunctionType())
@@ -26,6 +31,7 @@ function build_objective_oracles(optimizer::Optimizer)
     end
 
     if typ == MOI.ScalarQuadraticFunction{Float64}
+
         Q = zeros(Float64, n, n)
         q = zeros(Float64, n)
 
@@ -49,6 +55,15 @@ function build_objective_oracles(optimizer::Optimizer)
         end
 
         c = obj.constant
+
+        # check convexity
+        λmin = minimum(eigvals(sign * Q))
+        if λmin < -1e-8
+            error(
+                "The quadratic objective is not convex (concave for MAX_SENSE); Boscia requires a convex objective.",
+            )
+        end
+
 
         f = x -> sign * (0.5 * dot(x, Q, x) + dot(q, x) + c)
 
