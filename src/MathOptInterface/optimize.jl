@@ -22,14 +22,13 @@ function validate_model(optimizer::Optimizer)
         error("Unsupported objective sense: $sense")
     end
 
-    # supports ScalarQuadraticFunction and ScalarNonlinearFunction objectives.
     objective_type = MOI.get(optimizer, MOI.ObjectiveFunctionType())
     if objective_type != MOI.ScalarQuadraticFunction{Float64} &&
        objective_type != MOI.ScalarNonlinearFunction
         error("Unsupported objective type: $objective_type")
     end
 
-    # Constraints: every (F, S) pair must be supported by the LMO backend.
+
     constraint_types = MOI.get(optimizer.model, MOI.ListOfConstraintTypesPresent())
     for (F, S) in constraint_types
         if !MOI.supports_constraint(optimizer, F, S)
@@ -71,7 +70,6 @@ function MOI.optimize!(optimizer::Optimizer)
     optimizer.objective_value = nothing
     optimizer.variable_primal = Float64[]
 
-    # Fail early if the model cannot be solved by Boscia.
     validate_model(optimizer)
 
     # Start from Boscia's defaults and override them with the values set
@@ -89,6 +87,15 @@ function MOI.optimize!(optimizer::Optimizer)
     # Feasible region -> LMO (inner MIP solver).
     feasible_region_data = build_feasible_region(optimizer)
     lmo = build_lmo(optimizer.backend, feasible_region_data)
+
+    # Report an empty feasible region as INFEASIBLE instead of letting
+    # Boscia.solve fail on its first LMO call.
+    feasibility_status = check_feasibility(lmo)
+    if feasibility_status == MOI.INFEASIBLE || feasibility_status == MOI.INFEASIBLE_OR_UNBOUNDED
+        optimizer.termination_status = MOI.INFEASIBLE
+        optimizer.raw_status_string = "Infeasible"
+        return
+    end
 
     x, _, result = Boscia.solve(f, grad!, lmo; settings=settings)
 
