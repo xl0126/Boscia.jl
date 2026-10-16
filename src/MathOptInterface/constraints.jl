@@ -244,6 +244,37 @@ function MOI.supports_constraint(
     return supports_constraint(optimizer.backend, MOI.ScalarAffineFunction{Float64}, S)
 end
 
+# ---------------------------------------------------------------------------
+# Indicator constraints: z = 1 (or 0)  =>  a'x + b in S
+# ---------------------------------------------------------------------------
+function MOI.add_constraint(
+    optimizer::Optimizer,
+    func::MOI.VectorAffineFunction{Float64},
+    set::MOI.Indicator,
+)
+    return MOI.add_constraint(optimizer.model, func, set)
+end
+
+"""
+    MOI.supports_constraint(
+        optimizer::Optimizer,
+        ::Type{MOI.VectorAffineFunction{Float64}},
+        ::Type{S},
+    ) where {S<:MOI.Indicator}
+
+Return whether indicator constraints are supported. The answer is delegated to
+the LMO backend, so indicator constraints are supported exactly when the inner
+MIP solver supports them (e.g. SCIP).
+"""
+function MOI.supports_constraint(
+    optimizer::Optimizer,
+    func::Type{MOI.VectorAffineFunction{Float64}},
+    set::Type{S},
+) where {S<:MOI.Indicator}
+    return supports_constraint(optimizer.backend, func, set)
+end
+
+
 
 # ---------------------------------------------------------------------------
 # Feasible region
