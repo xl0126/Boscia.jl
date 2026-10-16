@@ -57,7 +57,7 @@ function build_lmo(backend::MathOptLMOBackend, feasible_region_data)
         MOI.set(inner, MOI.Silent(), true)
     end
 
-    index_map = MOI.copy_to(inner, feasible_region_data)
+    MOI.copy_to(inner, feasible_region_data)
     return FrankWolfe.MathOptLMO(inner)                # Wrap as an LMO
 end
 
