@@ -9,11 +9,10 @@ The following conditions are checked:
 1. The objective sense is `MOI.MIN_SENSE` or `MOI.MAX_SENSE`.
 2. The objective function is a `MOI.ScalarQuadraticFunction{Float64}` or a
    `MOI.ScalarNonlinearFunction`.
-3. Every constraint type `(F, S)` in the model is supported, as reported by
+3. A quadratic objective has at least one quadratic term; linear objectives
+   are not supported.
+4. Every constraint type `(F, S)` in the model is supported, as reported by
    `MOI.supports_constraint`.
-
-This function is called at the start of [`MOI.optimize!`](@ref), so that
-unsupported models fail early with a clear message, before any LMO is built.
 """
 function validate_model(optimizer::Optimizer)
     # Objective sense: feasibility problems (FEASIBILITY_SENSE) are not supported.
@@ -59,13 +58,11 @@ The solve proceeds in the following steps:
    attributes (`MOI.Silent`, `MOI.TimeLimitSec`).
 4. Build the objective oracles `f` and `grad!` from the objective.
 5. Build the LMO from the feasible region (constraints and variable bounds).
-6. Call `Boscia.solve`.
-7. Store the termination status, primal status, objective value and
+6. Check that the feasible region is not empty; if it is, set the
+   termination status to `MOI.INFEASIBLE` and return.
+7. Call `Boscia.solve`.
+8. Store the termination status, primal status, objective value and
    variable values, so that they can be queried through MOI.
-
-If Boscia does not find a solution (for example, because the time or node
-limit is reached first), the termination status is still set, but
-`MOI.PrimalStatus` is `MOI.NO_SOLUTION` and no variable values are available.
 """
 function MOI.optimize!(optimizer::Optimizer)
     # discard results from any previous solve. Otherwise, if this solve
