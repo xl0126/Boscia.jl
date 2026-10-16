@@ -28,6 +28,12 @@ function validate_model(optimizer::Optimizer)
         error("Unsupported objective type: $objective_type")
     end
 
+    if objective_type == MOI.ScalarQuadraticFunction{Float64}
+        obj = MOI.get(optimizer, MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}())
+        if isempty(obj.quadratic_terms)
+            error("Boscia does not support linear objectives; use a MIP solver instead.")
+        end
+    end
 
     constraint_types = MOI.get(optimizer.model, MOI.ListOfConstraintTypesPresent())
     for (F, S) in constraint_types
@@ -37,6 +43,7 @@ function validate_model(optimizer::Optimizer)
     end
 
     return
+
 end
 
 """
@@ -109,8 +116,6 @@ function MOI.optimize!(optimizer::Optimizer)
         optimizer.variable_primal = copy(x)
         optimizer.primal_status = MOI.FEASIBLE_POINT
 
-        # Boscia minimized the (possibly negated) objective, so the sign is
-        # flipped back for MAX_SENSE to report the user's objective value.
         sense = MOI.get(optimizer, MOI.ObjectiveSense())
         if sense == MOI.MIN_SENSE
             optimizer.objective_value = result[:primal_objective]
