@@ -14,6 +14,7 @@
 #   VariableIndex        in GreaterThan, LessThan, EqualTo, Interval,
 #                           Integer, ZeroOne
 #   ScalarAffineFunction in GreaterThan, LessThan, EqualTo
+#   VectorAffineFunction in Indicator   (if the inner MIP solver supports it, e.g. SCIP)
 #
 # All `add_constraint` and `NumberOfConstraints` methods below forward to
 # `optimizer.model` and differ only in the (function, set) types.
