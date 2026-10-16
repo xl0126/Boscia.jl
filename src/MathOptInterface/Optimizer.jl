@@ -1,5 +1,3 @@
-import MathOptInterface as MOI
-
 mutable struct Optimizer{B<:AbstractLMOBackend} <: MOI.AbstractOptimizer
     model::MOI.Utilities.Model{Float64}
     backend::B

@@ -7,8 +7,6 @@
 #   MOI.set(model, attr, value)      -> change the value                
 
 
-import MathOptInterface as MOI
-
 # SolverName
 function MOI.get(model::Optimizer, ::MOI.SolverName)
     return "Boscia"
