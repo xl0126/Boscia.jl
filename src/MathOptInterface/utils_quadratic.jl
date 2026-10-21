@@ -57,7 +57,8 @@ function build_objective_oracles(optimizer::Optimizer)
         c = obj.constant
 
         # check convexity
-        λmin = minimum(eigvals(sign * Q))
+        @assert issymmetric(Q)
+        λmin = eigmin(Symmetric(sign * Q))
         if λmin < -1e-8
             error(
                 "The quadratic objective is not convex (concave for MAX_SENSE); Boscia requires a convex objective.",
