@@ -1,29 +1,7 @@
-# LMO backends: what actually solves the linear subproblems for Boscia.
-#
-# At every Frank-Wolfe iteration, Boscia asks the LMO (linear minimization
-# oracle) to solve
-#
-#     min  <d, x>   s.t.  x in feasible region (+ bounds from branching)
-#
-# for some direction d. The LMO never sees the user's quadratic or nonlinear
-# objective, only linear ones.
-#
-# Each backend implements two functions:
-#   - build_lmo(backend, feasible_region)   -> (LMO passed to Boscia.solve)
-#   - supports_constraint(backend, F, S)    -> can this backend handle F-in-S?
-#
-# Currently only `MathOptLMOBackend` (an inner MIP solver) exists. Custom
-# LMOs (e.g. polytope or combinatorial oracles) can be added later as new
-# subtypes of `AbstractLMOBackend`, without changing the rest of the wrapper.
-
 """
     AbstractLMOBackend
 
-Supertype of all LMO backends used by [`Optimizer`](@ref).
-
-A backend decides how the feasible region of the MOI model is turned into an
-LMO for `Boscia.solve`. Subtypes must implement [`build_lmo`](@ref) and
-[`supports_constraint`](@ref).
+Supertype of all LMO backends used by `Optimizer`.
 """
 abstract type AbstractLMOBackend end
 
@@ -32,9 +10,6 @@ abstract type AbstractLMOBackend end
 
 LMO backend that solves the linear subproblems with an inner MIP solver,
 such as SCIP or HiGHS, wrapped as a `FrankWolfe.MathOptLMO`.
-
-`optimizer_factory` is anything accepted by `MOI.instantiate`, for example
-`SCIP.Optimizer` or `() -> HiGHS.Optimizer()`.
 """
 struct MathOptLMOBackend <: AbstractLMOBackend
     optimizer_factory::Any
@@ -45,9 +20,6 @@ end
 
 Create a new inner MIP solver, copy the feasible region into it, and wrap it
 as a `FrankWolfe.MathOptLMO`.
-
-`feasible_region_data` is the cached model without its objective, as
-returned by [`build_feasible_region`](@ref).
 """
 function build_lmo(backend::MathOptLMOBackend, feasible_region_data)
     inner = MOI.instantiate(backend.optimizer_factory)
@@ -65,13 +37,53 @@ end
     supports_constraint(backend::MathOptLMOBackend, ::Type{F}, ::Type{S}) where {F,S}
 
 Return whether the inner MIP solver supports `F`-in-`S` constraints.
-
-This is the backend's half of `MOI.supports_constraint`: since constraints
-are passed to the inner solver unchanged, they are supported exactly when
-that solver supports them.
 """
 function supports_constraint(backend::MathOptLMOBackend, ::Type{F}, ::Type{S})::Bool where {F,S}
     inner = MOI.instantiate(backend.optimizer_factory)
 
     return MOI.supports_constraint(inner, F, S)
+end
+
+
+
+
+"""
+    has_zero_one_hypercube(model)
+
+Return whether `model` contains a `MOI.VectorOfVariables`-in-
+`ZeroOneHypercube` constraint.
+"""
+function has_zero_one_hypercube(model)
+    n_cube = MOI.get(model, MOI.NumberOfConstraints{MOI.VectorOfVariables,ZeroOneHypercube}())
+    return n_cube > 0
+end
+
+"""
+    integer_variables(model)
+
+Return the sorted indices of the variables of `model` that have an
+`MOI.Integer` or `MOI.ZeroOne` constraint.
+"""
+function integer_variables(model)
+    int_vars = Int[]
+    for S in (MOI.Integer, MOI.ZeroOne)
+        for ci in MOI.get(model, MOI.ListOfConstraintIndices{MOI.VariableIndex,S}())
+            x = MOI.get(model, MOI.ConstraintFunction(), ci)
+            push!(int_vars, x.value)
+        end
+    end
+    return sort!(unique!(int_vars))
+end
+
+"""
+    build_zero_one_hypercube_lmo(model)
+
+Build the LMO for a model whose feasible region is the 0-1 hypercube.
+"""
+function build_zero_one_hypercube_lmo(model)
+    n = MOI.get(model, MOI.NumberOfVariables())
+    int_vars = integer_variables(model)
+    lower_bounds = zeros(length(int_vars))
+    upper_bounds = ones(length(int_vars))
+    return ManagedLMO(ZeroOneHypercubeLMO(), lower_bounds, upper_bounds, int_vars, n)
 end
