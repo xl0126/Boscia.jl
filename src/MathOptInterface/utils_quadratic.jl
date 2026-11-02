@@ -9,12 +9,10 @@ objective stored in `optimizer`.
 - `ScalarNonlinearFunction`: `f` and `grad!` are computed by MOI's automatic
   differentiation (`MOI.Nonlinear.Evaluator` with `SparseReverseMode`).
 
-For `MOI.MAX_SENSE`, both oracles are negated, so that Boscia always minimizes.
-
-Boscia requires a convex objective (concave for `MOI.MAX_SENSE`). For
-quadratic objectives this is checked: an error is thrown if `sign * Q` has a
-negative eigenvalue. For nonlinear objectives convexity cannot be checked in
-general.
+For quadratic objectives, convexity is checked: an error is thrown if
+`sign * Q` has a negative eigenvalue, where `sign` is `-1` for
+`MOI.MAX_SENSE` and `1` otherwise. For nonlinear objectives convexity
+cannot be checked in general.
 """
 function build_objective_oracles(optimizer::Optimizer)
     typ = MOI.get(optimizer, MOI.ObjectiveFunctionType())
