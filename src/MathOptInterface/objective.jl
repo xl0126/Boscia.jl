@@ -35,9 +35,6 @@ end
     )
 
 Store a quadratic objective in `optimizer`.
-
-The function is stored in canonical form: duplicate terms are merged, so each
-variable or pair of variables appears at most once.
 """
 function MOI.set(
     optimizer::Optimizer,
@@ -74,9 +71,6 @@ end
     )
 
 Store a nonlinear objective in `optimizer`.
-
-The function is stored unchanged. Its value and gradient are computed by MOI's
-automatic differentiation at `MOI.optimize!`.
 """
 function MOI.set(
     optimizer::Optimizer,
@@ -103,9 +97,6 @@ end
     MOI.set(optimizer::Optimizer, attr::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
 
 Set whether the objective is minimized or maximized.
-
-Only `MOI.MIN_SENSE` and `MOI.MAX_SENSE` are accepted at `MOI.optimize!`.
-`MOI.FEASIBILITY_SENSE` is stored but rejected when solving.
 """
 function MOI.set(optimizer::Optimizer, attr::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
     MOI.set(optimizer.model, attr, sense)
