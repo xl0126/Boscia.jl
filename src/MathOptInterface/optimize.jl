@@ -1,18 +1,44 @@
 """
+    validate_zero_one_hypercube(model, constraint_types)
+
+Check the rules for models with a `ZeroOneHypercube` constraint.
+"""
+function validate_zero_one_hypercube(model, constraint_types)
+    cis = MOI.get(model, MOI.ListOfConstraintIndices{MOI.VectorOfVariables,ZeroOneHypercube}())
+    if length(cis) > 1
+        error("Only one ZeroOneHypercube constraint is supported.")
+    end
+
+    func = MOI.get(model, MOI.ConstraintFunction(), only(cis))
+    all_variables = MOI.get(model, MOI.ListOfVariableIndices())
+    if length(func.variables) != length(all_variables) || Set(func.variables) != Set(all_variables)
+        error(
+            "The ZeroOneHypercube constraint must contain every variable of the model exactly once.",
+        )
+    end
+
+    allowed = [
+        (MOI.VectorOfVariables, ZeroOneHypercube),
+        (MOI.VariableIndex, MOI.Integer),
+        (MOI.VariableIndex, MOI.ZeroOne),
+    ]
+    for (F, S) in constraint_types
+        if !((F, S) in allowed)
+            error(
+                "A ZeroOneHypercube constraint cannot be combined with $F-in-$S constraints; intersections of sets are not supported.",
+            )
+        end
+    end
+
+    return
+end
+
+
+"""
     validate_model(optimizer::Optimizer)
 
 Check that the model stored in `optimizer` can be solved by Boscia, and throw
-an error otherwise.
-
-The following conditions are checked:
-
-1. The objective sense is `MOI.MIN_SENSE` or `MOI.MAX_SENSE`.
-2. The objective function is a `MOI.ScalarQuadraticFunction{Float64}` or a
-   `MOI.ScalarNonlinearFunction`.
-3. A quadratic objective has at least one quadratic term; linear objectives
-   are not supported.
-4. Every constraint type `(F, S)` in the model is supported, as reported by
-   `MOI.supports_constraint`.
+an error or a warning otherwise.
 """
 function validate_model(optimizer::Optimizer)
     # Objective sense: feasibility problems (FEASIBILITY_SENSE) are not supported.
@@ -41,6 +67,11 @@ function validate_model(optimizer::Optimizer)
         end
     end
 
+    # ZeroOneHypercubeLMO only knows the hypercube: reject any other constraint.
+    if has_zero_one_hypercube(optimizer.model)
+        validate_zero_one_hypercube(optimizer.model, constraint_types)
+    end
+
     return
 
 end
@@ -49,25 +80,8 @@ end
     MOI.optimize!(optimizer::Optimizer)
 
 Solve the model stored in `optimizer` with Boscia.
-
-The solve proceeds in the following steps:
-
-1. Discard results from any previous solve.
-2. Validate the model with [`validate_model`](@ref).
-3. Build Boscia settings from `create_default_settings()` and the optimizer
-   attributes (`MOI.Silent`, `MOI.TimeLimitSec`).
-4. Build the objective oracles `f` and `grad!` from the objective.
-5. Build the LMO from the feasible region (constraints and variable bounds).
-6. Check that the feasible region is not empty; if it is, set the
-   termination status to `MOI.INFEASIBLE` and return.
-7. Call `Boscia.solve`.
-8. Store the termination status, primal status, objective value and
-   variable values, so that they can be queried through MOI.
 """
 function MOI.optimize!(optimizer::Optimizer)
-    # discard results from any previous solve. Otherwise, if this solve
-    # fails or finds no solution, stale results from the previous model
-    # would still be reported.
     optimizer.termination_status = MOI.OPTIMIZE_NOT_CALLED
     optimizer.raw_status_string = ""
     optimizer.primal_status = MOI.NO_SOLUTION
@@ -76,26 +90,27 @@ function MOI.optimize!(optimizer::Optimizer)
 
     validate_model(optimizer)
 
-    # Start from Boscia's defaults and override them with the values set
-    # through MOI attributes.
     settings = Boscia.create_default_settings()
     settings.branch_and_bound[:verbose] = !optimizer.silent
     if optimizer.timeout !== nothing
         settings.branch_and_bound[:time_limit] = optimizer.timeout
     end
 
-    # Objective -> Frank-Wolfe oracles. MAX_SENSE is handled inside the
-    # oracles by negating f and grad!, so Boscia always minimizes.
     f, grad! = build_objective_oracles(optimizer)
 
-    # Feasible region -> LMO (inner MIP solver).
-    feasible_region_data = build_feasible_region(optimizer)
-    lmo = build_lmo(optimizer.backend, feasible_region_data)
+    if has_zero_one_hypercube(optimizer.model)
+        lmo = build_zero_one_hypercube_lmo(optimizer.model)
+    else
+        feasible_region_data = build_feasible_region(optimizer)
+        lmo = build_lmo(optimizer.backend, feasible_region_data)
+    end
 
     # Report an empty feasible region as INFEASIBLE instead of letting
     # Boscia.solve fail on its first LMO call.
     feasibility_status = check_feasibility(lmo)
-    if feasibility_status == MOI.INFEASIBLE || feasibility_status == MOI.INFEASIBLE_OR_UNBOUNDED
+    if feasibility_status == MOI.INFEASIBLE ||
+       feasibility_status == MOI.INFEASIBLE_OR_UNBOUNDED ||
+       feasibility_status == INFEASIBLE
         optimizer.termination_status = MOI.INFEASIBLE
         optimizer.raw_status_string = "Infeasible"
         return
@@ -106,7 +121,7 @@ function MOI.optimize!(optimizer::Optimizer)
     # The status is reported whether or not a solution was found.
     optimizer.raw_status_string = result[:status_string]
 
-    # Boscia returns `x === nothing` if no solution was found, e.g. when the
+    # Returns `x === nothing` if no solution was found, e.g. when the
     # time or node limit is reached first. In that case the result fields
     # keep their "no solution" values set at the start of this function.
     if x !== nothing
