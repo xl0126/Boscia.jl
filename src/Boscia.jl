@@ -61,6 +61,7 @@ include("MOI_bounded_oracle.jl")
 include("polytope_blmos.jl")
 
 # MOI
+include("MathOptInterface/sets.jl")
 include("MathOptInterface/lmo_backend.jl")
 include("MathOptInterface/Optimizer.jl")
 include("MathOptInterface/attributes.jl")
