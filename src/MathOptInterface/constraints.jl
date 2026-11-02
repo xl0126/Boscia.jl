@@ -1,23 +1,13 @@
 # Constraints of Boscia.Optimizer.
 #
-# Constraints are not handled by Boscia itself. They describe the feasible
-# region, which is passed to the LMO (an inner MIP solver) at `MOI.optimize!`.
-# This file therefore only:
-#
-#   1. stores constraints in the cached model `optimizer.model`
-#      (`MOI.add_constraint`, `MOI.NumberOfConstraints`), and
-#   2. reports which constraint types are supported, by asking the LMO
-#      backend (`MOI.supports_constraint`).
-#
 # Supported constraints:
 #
 #   VariableIndex        in GreaterThan, LessThan, EqualTo, Interval,
 #                           Integer, ZeroOne
 #   ScalarAffineFunction in GreaterThan, LessThan, EqualTo
 #   VectorAffineFunction in Indicator   (if the inner MIP solver supports it, e.g. SCIP)
-#
-# All `add_constraint` and `NumberOfConstraints` methods below forward to
-# `optimizer.model` and differ only in the (function, set) types.
+#   VectorOfVariables    in ZeroOneHypercube
+
 
 # ---------------------------------------------------------------------------
 # VariableIndex constraints: variable bounds and integrality
@@ -132,12 +122,6 @@ end
     ) where {S}
 
 Return whether a `VariableIndex`-in-`S` constraint is supported.
-
-Boscia passes these constraints to the LMO, so the answer is delegated to the
-LMO backend: the constraint is supported if the inner MIP solver supports it.
-
-Only the sets listed in the method signature are considered; any other set
-falls back to MOI's default and is reported as unsupported.
 """
 function MOI.supports_constraint(
     optimizer::Optimizer,
@@ -230,11 +214,6 @@ end
     ) where {S}
 
 Return whether a `ScalarAffineFunction`-in-`S` constraint is supported.
-
-As for variable constraints, the answer is delegated to the LMO backend.
-Only `GreaterThan`, `LessThan` and `EqualTo` are considered; other sets (for
-example `Interval`) are reported as unsupported and can be handled by MOI
-bridges.
 """
 function MOI.supports_constraint(
     optimizer::Optimizer,
@@ -263,9 +242,7 @@ end
         ::Type{S},
     ) where {S<:MOI.Indicator}
 
-Return whether indicator constraints are supported. The answer is delegated to
-the LMO backend, so indicator constraints are supported exactly when the inner
-MIP solver supports them (e.g. SCIP).
+Return whether indicator constraints are supported. 
 """
 function MOI.supports_constraint(
     optimizer::Optimizer,
@@ -274,6 +251,48 @@ function MOI.supports_constraint(
 ) where {S<:MOI.Indicator}
     return supports_constraint(optimizer.backend, func, set)
 end
+
+
+# ---------------------------------------------------------------------------
+# ZeroOneHypercube
+# ---------------------------------------------------------------------------
+"""
+    MOI.add_constraint(
+        optimizer::Optimizer,
+        func::MOI.VectorOfVariables,
+        set::ZeroOneHypercube,
+    )
+
+Add a `MOI.VectorOfVariables`-in-`ZeroOneHypercube` constraint to
+`optimizer`.
+"""
+function MOI.add_constraint(
+    optimizer::Optimizer,
+    func::MOI.VectorOfVariables,
+    set::ZeroOneHypercube,
+)
+    return MOI.add_constraint(optimizer.model, func, set)
+end
+
+
+"""
+    MOI.supports_constraint(
+        ::Optimizer,
+        ::Type{MOI.VectorOfVariables},
+        ::Type{ZeroOneHypercube},
+    )
+
+Return `true`: `Boscia.Optimizer` supports `MOI.VectorOfVariables`-in-
+`ZeroOneHypercube` constraints.
+"""
+function MOI.supports_constraint(
+    ::Optimizer,
+    ::Type{MOI.VectorOfVariables},
+    ::Type{ZeroOneHypercube},
+)
+    return true
+end
+
 
 
 
@@ -286,11 +305,6 @@ end
 
 Return a view of the cached model `src.model` that contains everything except
 the objective: variables, variable bounds, integrality and linear constraints.
-
-This view is copied into the inner MIP solver by [`build_lmo`](@ref). The
-objective is filtered out because Boscia never passes the user's (quadratic
-or nonlinear) objective to the LMO; the LMO only minimizes linear functions
-chosen by Frank-Wolfe.
 """
 function build_feasible_region(src::Optimizer)
     filtered_src = MOI.Utilities.ModelFilter(src.model) do item
