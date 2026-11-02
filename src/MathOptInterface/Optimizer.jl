@@ -1,5 +1,5 @@
 mutable struct Optimizer{B<:AbstractLMOBackend} <: MOI.AbstractOptimizer
-    model::MOI.Utilities.Model{Float64}
+    model::MOI.Utilities.UniversalFallback{MOI.Utilities.Model{Float64}}
     backend::B
     silent::Bool
     timeout::Union{Nothing,Float64}
@@ -13,7 +13,7 @@ end
 
 function Optimizer(backend::MathOptLMOBackend)
     return Optimizer{typeof(backend)}(
-        MOI.Utilities.Model{Float64}(),
+        MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
         backend,
         false,
         nothing,
@@ -35,8 +35,6 @@ end
 
 Remove all variables, constraints and objective information from `optimizer`,
 and discard the results of any previous call to `MOI.optimize!`.
-
-Optimizer attributes such as `MOI.Silent` and `MOI.TimeLimitSec` are preserved.
 """
 function MOI.empty!(optimizer::Optimizer)
     # 1. Clear the problem (variables, constraints, objective)
@@ -56,16 +54,13 @@ end
     MOI.is_empty(optimizer::Optimizer)
 
 Return `true` if `optimizer` is in the same state as directly after
-[`MOI.empty!`](@ref), and `false` otherwise.
+`MOI.empty!`, and `false` otherwise.
 
 The optimizer is considered empty if both of the following hold:
 
 1. The cached model contains no variables, constraints or objective.
 2. No results from a previous call to `MOI.optimize!` are stored, i.e. all
    result fields have their initial values.
-
-Optimizer attributes such as `MOI.Silent` and `MOI.TimeLimitSec`, as well as
-the LMO backend, are not checked, because `MOI.empty!` does not reset them.
 """
 function MOI.is_empty(optimizer::Optimizer)
     return MOI.is_empty(optimizer.model) &&
