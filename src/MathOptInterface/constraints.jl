@@ -6,8 +6,9 @@
 #                           Integer, ZeroOne
 #   ScalarAffineFunction in GreaterThan, LessThan, EqualTo
 #   VectorAffineFunction in Indicator   (if the inner MIP solver supports it, e.g. SCIP)
-#   VectorOfVariables    in ZeroOneHypercube
-
+#   VectorOfVariables    in CustomSet: ZeroOneHypercube, ProbabilitySimplex,
+#                           UnitSimplex, HyperSimplex, UnitHyperSimplex,
+#                           ReverseKnapsack
 
 # ---------------------------------------------------------------------------
 # VariableIndex constraints: variable bounds and integrality
@@ -254,23 +255,19 @@ end
 
 
 # ---------------------------------------------------------------------------
-# ZeroOneHypercube
+# Custom Sets
 # ---------------------------------------------------------------------------
 """
     MOI.add_constraint(
         optimizer::Optimizer,
         func::MOI.VectorOfVariables,
-        set::ZeroOneHypercube,
+        set::CustomSet,
     )
 
-Add a `MOI.VectorOfVariables`-in-`ZeroOneHypercube` constraint to
-`optimizer`.
+Add a `MOI.VectorOfVariables`-in-`CustomSet` constraint to `optimizer` by
+storing it in the cached model.
 """
-function MOI.add_constraint(
-    optimizer::Optimizer,
-    func::MOI.VectorOfVariables,
-    set::ZeroOneHypercube,
-)
+function MOI.add_constraint(optimizer::Optimizer, func::MOI.VectorOfVariables, set::CustomSet)
     return MOI.add_constraint(optimizer.model, func, set)
 end
 
@@ -279,17 +276,13 @@ end
     MOI.supports_constraint(
         ::Optimizer,
         ::Type{MOI.VectorOfVariables},
-        ::Type{ZeroOneHypercube},
+        ::Type{<:CustomSet},
     )
 
-Return `true`: `Boscia.Optimizer` supports `MOI.VectorOfVariables`-in-
-`ZeroOneHypercube` constraints.
+Return `true`: `Boscia.Optimizer` supports `MOI.VectorOfVariables`-in-`S`
+constraints for every `S` in `CustomSet`. 
 """
-function MOI.supports_constraint(
-    ::Optimizer,
-    ::Type{MOI.VectorOfVariables},
-    ::Type{ZeroOneHypercube},
-)
+function MOI.supports_constraint(::Optimizer, ::Type{MOI.VectorOfVariables}, ::Type{<:CustomSet})
     return true
 end
 
