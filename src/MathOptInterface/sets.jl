@@ -31,25 +31,27 @@ struct UnitSimplex <: MOI.AbstractVectorSet
 end
 
 """
-    HyperSimplex(dimension::Int, K::Int)
+    HyperSimplex(dimension::Int, K::Int, radius::Float64)
 
-The set ``\\{x \\in \\mathbb{R}^n : 0 \\le x_i \\le 1 \\text{ for all } i, \\sum_i x_i = K\\}``,
-where `n = dimension`.
+The set ``\\{x \\in \\mathbb{R}^n : 0 \\le x_i \\le \\tau \\text{ for all } i, \\sum_i x_i = K\\}``,
+where `n = dimension` and `τ = radius`.
 """
 struct HyperSimplex <: MOI.AbstractVectorSet
     dimension::Int
     K::Int
+    radius::Float64
 end
 
 """
-    UnitHyperSimplex(dimension::Int, K::Int)
+    UnitHyperSimplex(dimension::Int, K::Int, radius::Float64)
 
-The set ``\\{x \\in \\mathbb{R}^n : 0 \\le x_i \\le 1 \\text{ for all } i, \\sum_i x_i \\le K\\}``,
-where `n = dimension`.
+The set ``\\{x \\in \\mathbb{R}^n : 0 \\le x_i \\le \\tau \\text{ for all } i, \\sum_i x_i \\le K\\}``,
+where `n = dimension` and `τ = radius`.
 """
 struct UnitHyperSimplex <: MOI.AbstractVectorSet
     dimension::Int
     K::Int
+    radius::Float64
 end
 
 """
