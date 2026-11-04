@@ -1,31 +1,37 @@
 """
-    validate_zero_one_hypercube(model, constraint_types)
+    validate_custom_set(model, constraint_types)
 
-Check the rules for models with a `ZeroOneHypercube` constraint.
+Check the rules for models with a `CustomSet` constraint.
 """
-function validate_zero_one_hypercube(model, constraint_types)
-    cis = MOI.get(model, MOI.ListOfConstraintIndices{MOI.VectorOfVariables,ZeroOneHypercube}())
-    if length(cis) > 1
-        error("Only one ZeroOneHypercube constraint is supported.")
+function validate_custom_set(model, constraint_types)
+    cs = custom_set_constraints(model)
+    if isempty(cs)
+        return
     end
 
-    func = MOI.get(model, MOI.ConstraintFunction(), only(cis))
+    if length(cs) > 1
+        error("Only one custom set constraint is supported.")
+    end
+
+    c = only(cs)
+    set = MOI.get(model, MOI.ConstraintSet(), c)
+    func = MOI.get(model, MOI.ConstraintFunction(), c)
     all_variables = MOI.get(model, MOI.ListOfVariableIndices())
     if length(func.variables) != length(all_variables) || Set(func.variables) != Set(all_variables)
         error(
-            "The ZeroOneHypercube constraint must contain every variable of the model exactly once.",
+            "The $(typeof(set)) constraint must contain every variable of the model exactly once.",
         )
     end
 
     allowed = [
-        (MOI.VectorOfVariables, ZeroOneHypercube),
+        (MOI.VectorOfVariables, typeof(set)),
         (MOI.VariableIndex, MOI.Integer),
         (MOI.VariableIndex, MOI.ZeroOne),
     ]
     for (F, S) in constraint_types
         if !((F, S) in allowed)
             error(
-                "A ZeroOneHypercube constraint cannot be combined with $F-in-$S constraints; intersections of sets are not supported.",
+                "A $(typeof(set)) constraint cannot be combined with $F-in-$S constraints; intersections of sets are not supported.",
             )
         end
     end
@@ -56,7 +62,7 @@ function validate_model(optimizer::Optimizer)
     if objective_type == MOI.ScalarQuadraticFunction{Float64}
         obj = MOI.get(optimizer, MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}())
         if isempty(obj.quadratic_terms)
-            error("Boscia does not support linear objectives; use a MIP solver instead.")
+            @warn "The objective is linear, Boscia can solve it, but a MIP solver is usually faster."
         end
     end
 
@@ -67,10 +73,7 @@ function validate_model(optimizer::Optimizer)
         end
     end
 
-    # ZeroOneHypercubeLMO only knows the hypercube: reject any other constraint.
-    if has_zero_one_hypercube(optimizer.model)
-        validate_zero_one_hypercube(optimizer.model, constraint_types)
-    end
+    validate_custom_set(optimizer.model, constraint_types)
 
     return
 
@@ -98,8 +101,9 @@ function MOI.optimize!(optimizer::Optimizer)
 
     f, grad! = build_objective_oracles(optimizer)
 
-    if has_zero_one_hypercube(optimizer.model)
-        lmo = build_zero_one_hypercube_lmo(optimizer.model)
+    set = custom_set(optimizer.model)
+    if set !== nothing
+        lmo = build_custom_set_lmo(optimizer.model, set)
     else
         feasible_region_data = build_feasible_region(optimizer)
         lmo = build_lmo(optimizer.backend, feasible_region_data)
