@@ -24,7 +24,7 @@ as a `FrankWolfe.MathOptLMO`.
 function build_lmo(backend::MathOptLMOBackend, feasible_region_data)
     inner = MOI.instantiate(backend.optimizer_factory)
 
-    # Silent MIP solver 
+    # Silent MIP solver
     if MOI.supports(inner, MOI.Silent())
         MOI.set(inner, MOI.Silent(), true)
     end
@@ -44,19 +44,50 @@ function supports_constraint(backend::MathOptLMOBackend, ::Type{F}, ::Type{S})::
     return MOI.supports_constraint(inner, F, S)
 end
 
-
-
-
 """
-    has_zero_one_hypercube(model)
+    custom_set_constraints(model)
 
-Return whether `model` contains a `MOI.VectorOfVariables`-in-
-`ZeroOneHypercube` constraint.
+Return the indices of the `MOI.VectorOfVariables`-in-`CustomSet` constraints
+of `model`.
 """
-function has_zero_one_hypercube(model)
-    n_cube = MOI.get(model, MOI.NumberOfConstraints{MOI.VectorOfVariables,ZeroOneHypercube}())
-    return n_cube > 0
+function custom_set_constraints(model)
+    s = MOI.ConstraintIndex[]
+    for (F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent())
+        if F == MOI.VectorOfVariables && S <: CustomSet
+            append!(s, MOI.get(model, MOI.ListOfConstraintIndices{F,S}()))
+        end
+    end
+    return s
 end
+
+"""
+    custom_set(model)
+
+Return the custom set of `model`, or `nothing` if there is none.
+"""
+function custom_set(model)
+    s = custom_set_constraints(model)
+    if isempty(s)
+        return nothing
+    end
+    return MOI.get(model, MOI.ConstraintSet(), first(s))
+end
+
+# Inner LMO of each custom set
+custom_lmo(::ZeroOneHypercube) = ZeroOneHypercubeLMO()
+custom_lmo(set::ProbabilitySimplex) = ProbabilitySimplexLMO(set.N)
+custom_lmo(set::UnitSimplex) = UnitSimplexLMO(set.N)
+custom_lmo(set::HyperSimplex) = FrankWolfe.HyperSimplexLMO(set.K, 1.0)
+custom_lmo(set::UnitHyperSimplex) = FrankWolfe.UnitHyperSimplexLMO(set.K, 1.0)
+custom_lmo(set::ReverseKnapsack) = ReverseKnapsackLMO(set.dimension; N=set.N, upper=set.upper)
+
+# lb, ub of every integer variable for each custom set
+custom_bounds(::ZeroOneHypercube) = (0.0, 1.0)
+custom_bounds(set::ProbabilitySimplex) = (0.0, floor(set.N))
+custom_bounds(set::UnitSimplex) = (0.0, floor(set.N))
+custom_bounds(::HyperSimplex) = (0.0, 1.0)
+custom_bounds(::UnitHyperSimplex) = (0.0, 1.0)
+custom_bounds(set::ReverseKnapsack) = (0.0, floor(set.upper))
 
 """
     integer_variables(model)
@@ -76,14 +107,16 @@ function integer_variables(model)
 end
 
 """
-    build_zero_one_hypercube_lmo(model)
+    build_custom_set_lmo(model, set::CustomSet)
 
-Build the LMO for a model whose feasible region is the 0-1 hypercube.
+Build the LMO of `set`, wrapped in a `ManagedLMO` that stores the bounds of the
+integer variables and updates them during branching.
 """
-function build_zero_one_hypercube_lmo(model)
+function build_custom_set_lmo(model, set::CustomSet)
     n = MOI.get(model, MOI.NumberOfVariables())
     int_vars = integer_variables(model)
-    lower_bounds = zeros(length(int_vars))
-    upper_bounds = ones(length(int_vars))
-    return ManagedLMO(ZeroOneHypercubeLMO(), lower_bounds, upper_bounds, int_vars, n)
+    lower, upper = custom_bounds(set)
+    lower_bounds = fill(lower, length(int_vars))
+    upper_bounds = fill(upper, length(int_vars))
+    return ManagedLMO(custom_lmo(set), lower_bounds, upper_bounds, int_vars, n)
 end
