@@ -77,16 +77,16 @@ end
 custom_lmo(::ZeroOneHypercube) = ZeroOneHypercubeLMO()
 custom_lmo(set::ProbabilitySimplex) = ProbabilitySimplexLMO(set.N)
 custom_lmo(set::UnitSimplex) = UnitSimplexLMO(set.N)
-custom_lmo(set::HyperSimplex) = FrankWolfe.HyperSimplexLMO(set.K, 1.0)
-custom_lmo(set::UnitHyperSimplex) = FrankWolfe.UnitHyperSimplexLMO(set.K, 1.0)
+custom_lmo(set::HyperSimplex) = FrankWolfe.HyperSimplexLMO(set.K, set.radius)
+custom_lmo(set::UnitHyperSimplex) = FrankWolfe.UnitHyperSimplexLMO(set.K, set.radius)
 custom_lmo(set::ReverseKnapsack) = ReverseKnapsackLMO(set.dimension; N=set.N, upper=set.upper)
 
 # lb, ub of every integer variable for each custom set
 custom_bounds(::ZeroOneHypercube) = (0.0, 1.0)
 custom_bounds(set::ProbabilitySimplex) = (0.0, floor(set.N))
 custom_bounds(set::UnitSimplex) = (0.0, floor(set.N))
-custom_bounds(::HyperSimplex) = (0.0, 1.0)
-custom_bounds(::UnitHyperSimplex) = (0.0, 1.0)
+custom_bounds(set::HyperSimplex) = (0.0, floor(set.radius))
+custom_bounds(set::UnitHyperSimplex) = (0.0, floor(set.radius))
 custom_bounds(set::ReverseKnapsack) = (0.0, floor(set.upper))
 
 """
